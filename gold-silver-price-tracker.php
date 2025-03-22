@@ -62,10 +62,10 @@ class Gold_Silver_Price_Tracker {
      */
     public function add_settings_menu() {
         add_options_page(
-            __('Gold & Silver Price Settings', $this->plugin_slug),
-            __('Metal Price Tracker', $this->plugin_slug),
+            __('Gold & Silver Price Settings', gold-silver-price),
+            __('Metal Price Tracker', gold-silver-price),
             'manage_options',
-            $this->plugin_slug,
+            gold-silver-price,
             array($this, 'settings_page')
         );
     }
@@ -76,21 +76,21 @@ class Gold_Silver_Price_Tracker {
     public function settings_page() {
         ?>
         <div class="wrap">
-            <h1><?php echo esc_html__('Gold & Silver Price Tracker Settings', $this->plugin_slug); ?></h1>
+            <h1><?php echo esc_html__('Gold & Silver Price Tracker Settings', gold-silver-price); ?></h1>
             <form method="post" action="options.php">
                 <?php
                 settings_fields($this->options_name);
-                do_settings_sections($this->plugin_slug);
+                do_settings_sections(gold-silver-price);
                 submit_button();
                 ?>
             </form>
             <div class="card" style="max-width: 600px; margin-top: 20px; padding: 10px 20px;">
-                <h2><?php echo esc_html__('Shortcode Usage', $this->plugin_slug); ?></h2>
-                <p><?php echo esc_html__('Use this shortcode to display metal prices on your site:', $this->plugin_slug); ?></p>
+                <h2><?php echo esc_html__('Shortcode Usage', gold-silver-price); ?></h2>
+                <p><?php echo esc_html__('Use this shortcode to display metal prices on your site:', gold-silver-price); ?></p>
                 <code>[metal_prices]</code>
                 
-                <h3><?php echo esc_html__('Advanced Shortcode Options', $this->plugin_slug); ?></h3>
-                <p><?php echo esc_html__('You can customize individual instances with these attributes:', $this->plugin_slug); ?></p>
+                <h3><?php echo esc_html__('Advanced Shortcode Options', gold-silver-price); ?></h3>
+                <p><?php echo esc_html__('You can customize individual instances with these attributes:', gold-silver-price); ?></p>
                 <code>[metal_prices title="Custom Title" currency="EUR" weight_unit="g" show_chart="yes" metals="gold,silver"]</code>
             </div>
         </div>
@@ -110,72 +110,72 @@ class Gold_Silver_Price_Tracker {
         // API Settings
         add_settings_section(
             'api_settings',
-            __('API Settings', $this->plugin_slug),
+            __('API Settings', gold-silver-price),
             array($this, 'api_section_info'),
-            $this->plugin_slug
+            gold-silver-price
         );
         
         add_settings_field(
             'api_key',
-            __('GoldAPI.io API Key', $this->plugin_slug),
+            __('GoldAPI.io API Key', gold-silver-price),
             array($this, 'api_key_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'api_settings'
         );
         
         add_settings_field(
             'cache_time',
-            __('Cache Duration', $this->plugin_slug),
+            __('Cache Duration', gold-silver-price),
             array($this, 'cache_time_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'api_settings'
         );
         
         // Display Settings
         add_settings_section(
             'display_settings',
-            __('Display Settings', $this->plugin_slug),
+            __('Display Settings', gold-silver-price),
             array($this, 'display_section_info'),
-            $this->plugin_slug
+            gold-silver-price
         );
         
         add_settings_field(
             'title',
-            __('Default Title', $this->plugin_slug),
+            __('Default Title', gold-silver-price),
             array($this, 'title_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'display_settings'
         );
         
         add_settings_field(
             'currency',
-            __('Default Currency', $this->plugin_slug),
+            __('Default Currency', gold-silver-price),
             array($this, 'currency_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'display_settings'
         );
         
         add_settings_field(
             'weight_unit',
-            __('Weight Unit', $this->plugin_slug),
+            __('Weight Unit', gold-silver-price),
             array($this, 'weight_unit_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'display_settings'
         );
         
         add_settings_field(
             'layout',
-            __('Layout Style', $this->plugin_slug),
+            __('Layout Style', gold-silver-price),
             array($this, 'layout_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'display_settings'
         );
         
         add_settings_field(
             'custom_css',
-            __('Custom CSS', $this->plugin_slug),
+            __('Custom CSS', gold-silver-price),
             array($this, 'custom_css_field'),
-            $this->plugin_slug,
+            gold-silver-price,
             'display_settings'
         );
     }
@@ -184,12 +184,12 @@ class Gold_Silver_Price_Tracker {
      * Section info
      */
     public function api_section_info() {
-        echo '<p>' . __('Configure your GoldAPI.io API key and cache settings.', $this->plugin_slug) . '</p>';
-        echo '<p>' . __('Get a free API key from <a href="https://www.goldapi.io" target="_blank">GoldAPI.io</a>', $this->plugin_slug) . '</p>';
+        echo '<p>' . __('Configure your GoldAPI.io API key and cache settings.', gold-silver-price) . '</p>';
+        echo '<p>' . __('Get a free API key from <a href="https://www.goldapi.io" target="_blank">GoldAPI.io</a>', gold-silver-price) . '</p>';
     }
     
     public function display_section_info() {
-        echo '<p>' . __('Customize how the metal prices are displayed on your website.', $this->plugin_slug) . '</p>';
+        echo '<p>' . __('Customize how the metal prices are displayed on your website.', gold-silver-price) . '</p>';
     }
     
     /**
@@ -202,7 +202,7 @@ class Gold_Silver_Price_Tracker {
     
     public function cache_time_field() {
         $options = get_option($this->options_name);
-        echo '<input type="number" id="cache_time" name="' . $this->options_name . '[cache_time]" value="' . esc_attr($options['cache_time']) . '" class="small-text" min="5" max="1440" /> ' . __('minutes', $this->plugin_slug);
+        echo '<input type="number" id="cache_time" name="' . $this->options_name . '[cache_time]" value="' . esc_attr($options['cache_time']) . '" class="small-text" min="5" max="1440" /> ' . __('minutes', gold-silver-price);
     }
     
     public function title_field() {
@@ -213,16 +213,16 @@ class Gold_Silver_Price_Tracker {
     public function currency_field() {
         $options = get_option($this->options_name);
         $currencies = array(
-            'USD' => __('US Dollar (USD)', $this->plugin_slug),
-            'EUR' => __('Euro (EUR)', $this->plugin_slug),
-            'GBP' => __('British Pound (GBP)', $this->plugin_slug),
-            'INR' => __('Indian Rupee (INR)', $this->plugin_slug),
-            'NPR' => __('Nepalese Rupee (NPR)', $this->plugin_slug),
-            'AUD' => __('Australian Dollar (AUD)', $this->plugin_slug),
-            'CAD' => __('Canadian Dollar (CAD)', $this->plugin_slug),
-            'CHF' => __('Swiss Franc (CHF)', $this->plugin_slug),
-            'JPY' => __('Japanese Yen (JPY)', $this->plugin_slug),
-            'CNY' => __('Chinese Yuan (CNY)', $this->plugin_slug)
+            'USD' => __('US Dollar (USD)', gold-silver-price),
+            'EUR' => __('Euro (EUR)', gold-silver-price),
+            'GBP' => __('British Pound (GBP)', gold-silver-price),
+            'INR' => __('Indian Rupee (INR)', gold-silver-price),
+            'NPR' => __('Nepalese Rupee (NPR)', gold-silver-price),
+            'AUD' => __('Australian Dollar (AUD)', gold-silver-price),
+            'CAD' => __('Canadian Dollar (CAD)', gold-silver-price),
+            'CHF' => __('Swiss Franc (CHF)', gold-silver-price),
+            'JPY' => __('Japanese Yen (JPY)', gold-silver-price),
+            'CNY' => __('Chinese Yuan (CNY)', gold-silver-price)
         );
         
         echo '<select id="currency" name="' . $this->options_name . '[currency]">';
@@ -235,10 +235,10 @@ class Gold_Silver_Price_Tracker {
     public function weight_unit_field() {
         $options = get_option($this->options_name);
         $weight_units = array(
-            'oz' => __('Troy Ounce (oz)', $this->plugin_slug),
-            'g' => __('Gram (g)', $this->plugin_slug),
-            'kg' => __('Kilogram (kg)', $this->plugin_slug),
-            'tola' => __('Tola', $this->plugin_slug)
+            'oz' => __('Troy Ounce (oz)', gold-silver-price),
+            'g' => __('Gram (g)', gold-silver-price),
+            'kg' => __('Kilogram (kg)', gold-silver-price),
+            'tola' => __('Tola', gold-silver-price)
         );
         
         echo '<select id="weight_unit" name="' . $this->options_name . '[weight_unit]">';
@@ -251,9 +251,9 @@ class Gold_Silver_Price_Tracker {
     public function layout_field() {
         $options = get_option($this->options_name);
         $layouts = array(
-            'standard' => __('Standard', $this->plugin_slug),
-            'compact' => __('Compact', $this->plugin_slug),
-            'detailed' => __('Detailed', $this->plugin_slug)
+            'standard' => __('Standard', gold-silver-price),
+            'compact' => __('Compact', gold-silver-price),
+            'detailed' => __('Detailed', gold-silver-price)
         );
         
         echo '<select id="layout" name="' . $this->options_name . '[layout]">';
@@ -401,7 +401,7 @@ class Gold_Silver_Price_Tracker {
         $prices = $this->get_metal_prices();
         
         if (!$prices) {
-            return '<p>' . __('Unable to fetch current prices. Please check your API key.', $this->plugin_slug) . '</p>';
+            return '<p>' . __('Unable to fetch current prices. Please check your API key.', gold-silver-price) . '</p>';
         }
         
         // Get which metals to display
@@ -420,9 +420,9 @@ class Gold_Silver_Price_Tracker {
             
             $output .= '
             <div class="metal-price gold">
-                <h4>' . __('Gold', $this->plugin_slug) . '</h4>
+                <h4>' . __('Gold', gold-silver-price) . '</h4>
                 <div class="price-value">' . esc_html($attributes['currency']) . ' ' . esc_html($gold_price) . 
-                    '<span>' . __('per', $this->plugin_slug) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
+                    '<span>' . __('per', gold-silver-price) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
                 <div class="price-change ' . esc_attr($gold_class) . '">' . esc_html($gold_arrow) . ' ' . 
                     esc_html(abs($gold_change)) . '%</div>
             </div>';
@@ -437,9 +437,9 @@ class Gold_Silver_Price_Tracker {
             
             $output .= '
             <div class="metal-price silver">
-                <h4>' . __('Silver', $this->plugin_slug) . '</h4>
+                <h4>' . __('Silver', gold-silver-price) . '</h4>
                 <div class="price-value">' . esc_html($attributes['currency']) . ' ' . esc_html($silver_price) . 
-                    '<span>' . __('per', $this->plugin_slug) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
+                    '<span>' . __('per', gold-silver-price) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
                 <div class="price-change ' . esc_attr($silver_class) . '">' . esc_html($silver_arrow) . ' ' . 
                     esc_html(abs($silver_change)) . '%</div>
             </div>';
@@ -448,9 +448,9 @@ class Gold_Silver_Price_Tracker {
         // Add footer with timestamp and refresh button
         $output .= '
         <div class="price-footer">
-            <div class="update-time">' . __('Last Updated:', $this->plugin_slug) . ' ' . 
+            <div class="update-time">' . __('Last Updated:', gold-silver-price) . ' ' . 
                 date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($prices['last_updated'])) . '</div>
-            <button id="refresh-prices" class="refresh-btn">' . __('Refresh Prices', $this->plugin_slug) . '</button>
+            <button id="refresh-prices" class="refresh-btn">' . __('Refresh Prices', gold-silver-price) . '</button>
         </div>';
         
         $output .= '</div>';
@@ -608,7 +608,7 @@ class Gold_Silver_Price_Tracker {
         jQuery(document).ready(function($) {
             $('.refresh-btn').on('click', function() {
                 var button = $(this);
-                button.prop('disabled', true).text('" . __('Refreshing...', $this->plugin_slug) . "');
+                button.prop('disabled', true).text('" . __('Refreshing...', gold-silver-price) . "');
                 
                 // Clear the transient to force refresh
                 $.ajax({
@@ -621,13 +621,13 @@ class Gold_Silver_Price_Tracker {
                         if (response.success) {
                             location.reload();
                         } else {
-                            alert('" . __('Error refreshing prices', $this->plugin_slug) . "');
-                            button.prop('disabled', false).text('" . __('Refresh Prices', $this->plugin_slug) . "');
+                            alert('" . __('Error refreshing prices', gold-silver-price) . "');
+                            button.prop('disabled', false).text('" . __('Refresh Prices', gold-silver-price) . "');
                         }
                     },
                     error: function() {
-                        alert('" . __('Error connecting to server', $this->plugin_slug) . "');
-                        button.prop('disabled', false).text('" . __('Refresh Prices', $this->plugin_slug) . "');
+                        alert('" . __('Error connecting to server', gold-silver-price) . "');
+                        button.prop('disabled', false).text('" . __('Refresh Prices', gold-silver-price) . "');
                     }
                 });
             });
