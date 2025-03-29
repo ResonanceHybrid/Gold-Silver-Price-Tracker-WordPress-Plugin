@@ -1,67 +1,54 @@
-=== Gold & Silver Price Tracker ===
-Contributors: Sohan Mehta
-Tags: gold, silver, metal prices, price tracker, commodities
-Requires at least: 5.0
-Tested up to: 6.5
-Stable tag: 1.0.0
-Requires PHP: 7.0
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Nepal Metal Price Tracker
+A WordPress plugin that tracks and displays current gold and silver prices in Nepal with historical data visualization.
 
-Display real-time gold and silver prices in any currency with a customizable shortcode.
+Description
+Nepal Metal Price Tracker scrapes real-time gold and silver prices from Hamro Patro's website and displays them on your WordPress site. The plugin includes features for historical price tracking, data visualization, and price refresh functionality.
 
-== Description ==
+Features
 
-Gold & Silver Price Tracker is a flexible WordPress plugin that allows you to display current precious metal prices anywhere on your website using a simple shortcode.
+🔍 Real-time Price Tracking: Displays current gold and silver prices in NPR per tola
+📊 Historical Data: Tracks and stores price history for the last 30 days
+📈 Price Visualization: Shows beautiful charts for gold and silver price trends
+🔄 Manual Refresh: Allows users to refresh prices with a button click
+⏱️ Automatic Updates: Daily scheduled price updates
+🧩 Widget Support: Easy display in widget areas
 
-= Features =
-* Real-time gold and silver price tracking
-* Support for multiple currencies (USD, EUR, GBP, JPY, etc.)
-* Multiple weight units (oz, g, kg, tola)
-* Customizable display layouts
-* Responsive design
-* Cache control to reduce API usage
-* Shortcode support with customization options
+Installation
 
-= Requirements =
-* WordPress 5.0 or higher
-* PHP 7.0 or higher
-* A free or paid API key from GoldAPI.io
+Upload the nepal-metal-price-tracker folder to the /wp-content/plugins/ directory
+Activate the plugin through the 'Plugins' menu in WordPress
+Use shortcodes to display prices on your pages or posts
 
-== Installation ==
+Shortcodes
 
-1. Upload the `gold-silver-price-tracker` folder to the `/wp-content/plugins/` directory
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. Go to Settings > Metal Price Tracker to configure the plugin
-4. Add your GoldAPI.io API key in the settings page
-5. Use the shortcode `[metal_prices]` in any post or page to display the prices
+Display current prices:
+Copy[nepal_gold_price]
 
-== Frequently Asked Questions ==
+Show gold price history table:
+Copy[gold_price_history_table]
 
-= Where do I get an API key? =
+Display gold price chart:
+Copy[gold_price_history_graph]
 
-You need to register for an API key at [GoldAPI.io](https://www.goldapi.io). They offer free and paid plans depending on your usage requirements.
+Show silver price history table:
+Copy[silver_price_history_table]
 
-= How often are the prices updated? =
+Display silver price chart:
+Copy[silver_price_history_graph]
 
-By default, prices are cached for 60 minutes to reduce API calls. You can adjust this in the plugin settings, or your visitors can use the "Refresh Prices" button to get the latest data.
+Add manual refresh buttons:
+Copy[gold_price_manual_refresh]
 
-= Can I customize the display? =
+[silver_price_manual_refresh]
 
-Yes! You can choose between different layouts in the settings, and also add custom CSS. Additionally, you can customize individual instances with shortcode attributes.
 
-== Screenshots ==
+Technical Details
 
-1. Metal prices display on the frontend
-2. Plugin settings page
-3. Different layout options
+Web scraping uses PHP's DOMDocument to parse HTML from Hamro Patro
+Data is cached using WordPress transients for 1 hour
+Historical data is stored in WordPress options table
+Charts are rendered using Chart.js
+Responsive design works on all devices
 
-== Changelog ==
-
-= 1.0.0 =
-* Initial release
-
-== Upgrade Notice ==
-
-= 1.0.0 =
-Initial release
+License
+GPL v2 or later
