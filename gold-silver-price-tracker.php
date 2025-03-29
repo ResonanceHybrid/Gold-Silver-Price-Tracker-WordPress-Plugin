@@ -1,650 +1,918 @@
 <?php
 /**
- * Plugin Name: Gold & Silver Price Tracker
- 
- * Description: Display real-time gold and silver prices in any currency with customizable API key.
- * Version: 1.0.0
+ * Plugin Name: Nepal Metal Price Tracker
+ * Plugin URI: https://sohanmehta.com.np
+ * Description: Track and display current gold and silver prices in Nepal with historical data and charts (Web Scrapping From Hamro Patro).
+ * Version: 1.0
  * Author: Sohan Mehta
  * Author URI: https://sohanmehta.com.np
- * Text Domain: gold-silver-price
+ * Text Domain: nepal-metal-price-tracker
  * License: GPL v2 or later
  */
 
-// Exit if accessed directly
-if (!defined('ABSPATH')) exit;
 
-class Gold_Silver_Price_Tracker {
-    // Plugin variables
-    private $plugin_slug = 'gold-silver-price';
-    private $options_name = 'gold_silver_price_options';
-    private $cache_key = 'gold_silver_price_data';
-    
-    // Constructor
-    public function __construct() {
-        // Activation hook
-        register_activation_hook(__FILE__, array($this, 'activate_plugin'));
-        
-        // Add menu and settings
-        add_action('admin_menu', array($this, 'add_settings_menu'));
-        add_action('admin_init', array($this, 'register_settings'));
-        
-        // Register shortcode
-        add_shortcode('metal_prices', array($this, 'display_metal_prices'));
-        
-        // Enqueue assets
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
-        
-        // AJAX handlers for refresh
-        add_action('wp_ajax_refresh_metal_prices', array($this, 'refresh_prices'));
-        add_action('wp_ajax_nopriv_refresh_metal_prices', array($this, 'refresh_prices'));
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Function to get gold and silver prices for Nepal
+function get_gold_silver_prices_nepal() {
+    // Check if prices are cached in a transient
+    $cached_prices = get_transient('nepal_gold_silver_prices');
+    if ($cached_prices !== false) {
+        return $cached_prices;
     }
-    
-    /**
-     * Plugin activation
-     */
-    public function activate_plugin() {
-        // Set default options
-        $default_options = array(
-            'api_key' => '',
-            'currency' => 'USD',
-            'weight_unit' => 'oz', // oz, g, kg, tola
-            'cache_time' => 60, // minutes
-            'title' => 'Today\'s Metal Prices',
-            'layout' => 'standard',
-            'custom_css' => ''
-        );
-        
-        add_option($this->options_name, $default_options);
-    }
-    
-    /**
-     * Add admin menu
-     */
-    public function add_settings_menu() {
-        add_options_page(
-            __('Gold & Silver Price Settings', gold-silver-price),
-            __('Metal Price Tracker', gold-silver-price),
-            'manage_options',
-            gold-silver-price,
-            array($this, 'settings_page')
-        );
-    }
-    
-    /**
-     * Settings page
-     */
-    public function settings_page() {
-        ?>
-        <div class="wrap">
-            <h1><?php echo esc_html__('Gold & Silver Price Tracker Settings', gold-silver-price); ?></h1>
-            <form method="post" action="options.php">
-                <?php
-                settings_fields($this->options_name);
-                do_settings_sections(gold-silver-price);
-                submit_button();
-                ?>
-            </form>
-            <div class="card" style="max-width: 600px; margin-top: 20px; padding: 10px 20px;">
-                <h2><?php echo esc_html__('Shortcode Usage', gold-silver-price); ?></h2>
-                <p><?php echo esc_html__('Use this shortcode to display metal prices on your site:', gold-silver-price); ?></p>
-                <code>[metal_prices]</code>
-                
-                <h3><?php echo esc_html__('Advanced Shortcode Options', gold-silver-price); ?></h3>
-                <p><?php echo esc_html__('You can customize individual instances with these attributes:', gold-silver-price); ?></p>
-                <code>[metal_prices title="Custom Title" currency="EUR" weight_unit="g" show_chart="yes" metals="gold,silver"]</code>
-            </div>
-        </div>
-        <?php
-    }
-    
-    /**
-     * Register settings
-     */
-    public function register_settings() {
-        register_setting(
-            $this->options_name,
-            $this->options_name,
-            array($this, 'validate_settings')
-        );
-        
-        // API Settings
-        add_settings_section(
-            'api_settings',
-            __('API Settings', gold-silver-price),
-            array($this, 'api_section_info'),
-            gold-silver-price
-        );
-        
-        add_settings_field(
-            'api_key',
-            __('GoldAPI.io API Key', gold-silver-price),
-            array($this, 'api_key_field'),
-            gold-silver-price,
-            'api_settings'
-        );
-        
-        add_settings_field(
-            'cache_time',
-            __('Cache Duration', gold-silver-price),
-            array($this, 'cache_time_field'),
-            gold-silver-price,
-            'api_settings'
-        );
-        
-        // Display Settings
-        add_settings_section(
-            'display_settings',
-            __('Display Settings', gold-silver-price),
-            array($this, 'display_section_info'),
-            gold-silver-price
-        );
-        
-        add_settings_field(
-            'title',
-            __('Default Title', gold-silver-price),
-            array($this, 'title_field'),
-            gold-silver-price,
-            'display_settings'
-        );
-        
-        add_settings_field(
-            'currency',
-            __('Default Currency', gold-silver-price),
-            array($this, 'currency_field'),
-            gold-silver-price,
-            'display_settings'
-        );
-        
-        add_settings_field(
-            'weight_unit',
-            __('Weight Unit', gold-silver-price),
-            array($this, 'weight_unit_field'),
-            gold-silver-price,
-            'display_settings'
-        );
-        
-        add_settings_field(
-            'layout',
-            __('Layout Style', gold-silver-price),
-            array($this, 'layout_field'),
-            gold-silver-price,
-            'display_settings'
-        );
-        
-        add_settings_field(
-            'custom_css',
-            __('Custom CSS', gold-silver-price),
-            array($this, 'custom_css_field'),
-            gold-silver-price,
-            'display_settings'
-        );
-    }
-    
-    /**
-     * Section info
-     */
-    public function api_section_info() {
-        echo '<p>' . __('Configure your GoldAPI.io API key and cache settings.', gold-silver-price) . '</p>';
-        echo '<p>' . __('Get a free API key from <a href="https://www.goldapi.io" target="_blank">GoldAPI.io</a>', gold-silver-price) . '</p>';
-    }
-    
-    public function display_section_info() {
-        echo '<p>' . __('Customize how the metal prices are displayed on your website.', gold-silver-price) . '</p>';
-    }
-    
-    /**
-     * Settings fields
-     */
-    public function api_key_field() {
-        $options = get_option($this->options_name);
-        echo '<input type="text" id="api_key" name="' . $this->options_name . '[api_key]" value="' . esc_attr($options['api_key']) . '" class="regular-text" />';
-    }
-    
-    public function cache_time_field() {
-        $options = get_option($this->options_name);
-        echo '<input type="number" id="cache_time" name="' . $this->options_name . '[cache_time]" value="' . esc_attr($options['cache_time']) . '" class="small-text" min="5" max="1440" /> ' . __('minutes', gold-silver-price);
-    }
-    
-    public function title_field() {
-        $options = get_option($this->options_name);
-        echo '<input type="text" id="title" name="' . $this->options_name . '[title]" value="' . esc_attr($options['title']) . '" class="regular-text" />';
-    }
-    
-    public function currency_field() {
-        $options = get_option($this->options_name);
-        $currencies = array(
-            'USD' => __('US Dollar (USD)', gold-silver-price),
-            'EUR' => __('Euro (EUR)', gold-silver-price),
-            'GBP' => __('British Pound (GBP)', gold-silver-price),
-            'INR' => __('Indian Rupee (INR)', gold-silver-price),
-            'NPR' => __('Nepalese Rupee (NPR)', gold-silver-price),
-            'AUD' => __('Australian Dollar (AUD)', gold-silver-price),
-            'CAD' => __('Canadian Dollar (CAD)', gold-silver-price),
-            'CHF' => __('Swiss Franc (CHF)', gold-silver-price),
-            'JPY' => __('Japanese Yen (JPY)', gold-silver-price),
-            'CNY' => __('Chinese Yuan (CNY)', gold-silver-price)
-        );
-        
-        echo '<select id="currency" name="' . $this->options_name . '[currency]">';
-        foreach ($currencies as $code => $name) {
-            echo '<option value="' . esc_attr($code) . '" ' . selected($options['currency'], $code, false) . '>' . esc_html($name) . '</option>';
-        }
-        echo '</select>';
-    }
-    
-    public function weight_unit_field() {
-        $options = get_option($this->options_name);
-        $weight_units = array(
-            'oz' => __('Troy Ounce (oz)', gold-silver-price),
-            'g' => __('Gram (g)', gold-silver-price),
-            'kg' => __('Kilogram (kg)', gold-silver-price),
-            'tola' => __('Tola', gold-silver-price)
-        );
-        
-        echo '<select id="weight_unit" name="' . $this->options_name . '[weight_unit]">';
-        foreach ($weight_units as $code => $name) {
-            echo '<option value="' . esc_attr($code) . '" ' . selected($options['weight_unit'], $code, false) . '>' . esc_html($name) . '</option>';
-        }
-        echo '</select>';
-    }
-    
-    public function layout_field() {
-        $options = get_option($this->options_name);
-        $layouts = array(
-            'standard' => __('Standard', gold-silver-price),
-            'compact' => __('Compact', gold-silver-price),
-            'detailed' => __('Detailed', gold-silver-price)
-        );
-        
-        echo '<select id="layout" name="' . $this->options_name . '[layout]">';
-        foreach ($layouts as $code => $name) {
-            echo '<option value="' . esc_attr($code) . '" ' . selected($options['layout'], $code, false) . '>' . esc_html($name) . '</option>';
-        }
-        echo '</select>';
-    }
-    
-    public function custom_css_field() {
-        $options = get_option($this->options_name);
-        echo '<textarea id="custom_css" name="' . $this->options_name . '[custom_css]" rows="6" cols="50" class="large-text code">' . esc_textarea($options['custom_css']) . '</textarea>';
-    }
-    
-    /**
-     * Validate settings
-     */
-    public function validate_settings($input) {
-        $validated = array();
-        
-        $validated['api_key'] = sanitize_text_field($input['api_key']);
-        $validated['currency'] = sanitize_text_field($input['currency']);
-        $validated['weight_unit'] = sanitize_text_field($input['weight_unit']);
-        $validated['title'] = sanitize_text_field($input['title']);
-        $validated['layout'] = sanitize_text_field($input['layout']);
-        $validated['custom_css'] = sanitize_textarea_field($input['custom_css']);
-        
-        $cache_time = intval($input['cache_time']);
-        $validated['cache_time'] = ($cache_time < 5) ? 5 : (($cache_time > 1440) ? 1440 : $cache_time);
-        
-        // Clear the cache when settings are changed
-        delete_transient($this->cache_key);
-        
-        return $validated;
-    }
-    
-    /**
-     * Get metal prices
-     */
-    public function get_metal_prices() {
-        $options = get_option($this->options_name);
-        
-        // Check cache first
-        $prices = get_transient($this->cache_key);
-        
-        if (false === $prices || empty($prices)) {
-            // Gold price (XAU)
-            $gold_data = $this->fetch_metal_price('XAU', $options['currency']);
-            
-            // Silver price (XAG)
-            $silver_data = $this->fetch_metal_price('XAG', $options['currency']);
-            
-            if ($gold_data && $silver_data) {
-                // Convert to selected weight unit
-                $gold_price = $this->convert_weight_unit($gold_data['price'], 'oz', $options['weight_unit']);
-                $silver_price = $this->convert_weight_unit($silver_data['price'], 'oz', $options['weight_unit']);
-                
-                $prices = array(
-                    'gold' => array(
-                        'price' => $gold_price,
-                        'currency' => $options['currency'],
-                        'weight_unit' => $options['weight_unit'],
-                        'change_percentage' => $gold_data['ch_percent'] 
-                    ),
-                    'silver' => array(
-                        'price' => $silver_price,
-                        'currency' => $options['currency'],
-                        'weight_unit' => $options['weight_unit'],
-                        'change_percentage' => $silver_data['ch_percent']
-                    ),
-                    'last_updated' => current_time('mysql')
-                );
-                
-                // Cache based on admin setting
-                set_transient($this->cache_key, $prices, $options['cache_time'] * 60);
-            }
-        }
-        
+
+    // Fetch prices
+    $prices = scrape_hamropatro_prices();
+
+    // If prices are successfully fetched, cache them for 1 hour
+    if ($prices) {
+        set_transient('nepal_gold_silver_prices', $prices, 1 * HOUR_IN_SECONDS);
         return $prices;
     }
+
+    // If scraping fails, return false
+    return false;
+}
+
+function scrape_hamropatro_prices() {
+    $url = 'https://www.hamropatro.com/gold';
     
-    /**
-     * Fetch metal price from API
-     */
-    public function fetch_metal_price($symbol, $currency) {
-        $options = get_option($this->options_name);
-        $api_key = $options['api_key'];
-        
-        $url = "https://www.goldapi.io/api/{$symbol}/{$currency}";
-        $headers = array(
-            'x-access-token: ' . $api_key
-        );
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        $response = curl_exec($ch);
+    // Initialize cURL with more detailed options
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    
+    // Add comprehensive user agent
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    
+    // Add headers to mimic browser request
+    $headers = [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language: en-US,en;q=0.5',
+        'Connection: keep-alive',
+        'Upgrade-Insecure-Requests: 1'
+    ];
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    
+    // Execute the request
+    $html = curl_exec($ch);
+    
+    // Check for cURL errors
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        error_log('cURL Error in Hamropatro Scraper: ' . $error);
         curl_close($ch);
-
-        if ($response) {
-            return json_decode($response, true);
-        }
-        
         return false;
     }
     
-    /**
-     * Convert between weight units
-     */
-    public function convert_weight_unit($price, $from_unit, $to_unit) {
-        // Conversion rates to troy ounce
-        $to_oz = array(
-            'oz' => 1,
-            'g' => 0.0321507466,
-            'kg' => 32.1507466,
-            'tola' => 0.375
-        );
-        
-        // Convert from the source unit to troy ounce first (if needed)
-        if ($from_unit != 'oz') {
-            $price = $price / $to_oz[$from_unit];
-        }
-        
-        // Convert from troy ounce to target unit
-        return $price * $to_oz[$to_unit];
-    }
+    // Close cURL
+    curl_close($ch);
     
-    /**
-     * Display metal prices shortcode
-     */
-    public function display_metal_prices($atts) {
-        $options = get_option($this->options_name);
-        
-        // Parse shortcode attributes
-        $attributes = shortcode_atts(array(
-            'title' => $options['title'],
-            'currency' => $options['currency'],
-            'weight_unit' => $options['weight_unit'],
-            'layout' => $options['layout'],
-            'metals' => 'gold,silver'
-        ), $atts);
-        
-        // Get prices data
-        $prices = $this->get_metal_prices();
-        
-        if (!$prices) {
-            return '<p>' . __('Unable to fetch current prices. Please check your API key.', gold-silver-price) . '</p>';
-        }
-        
-        // Get which metals to display
-        $metals_to_show = explode(',', $attributes['metals']);
-        
-        // Start building output
-        $output = '<div class="metal-prices-container layout-' . esc_attr($attributes['layout']) . '">';
-        $output .= '<h3>' . esc_html($attributes['title']) . '</h3>';
-        
-        // Display gold if requested
-        if (in_array('gold', $metals_to_show)) {
-            $gold_price = number_format($prices['gold']['price'], 2);
-            $gold_change = $prices['gold']['change_percentage'];
-            $gold_arrow = $gold_change >= 0 ? '↑' : '↓';
-            $gold_class = $gold_change >= 0 ? 'price-up' : 'price-down';
-            
-            $output .= '
-            <div class="metal-price gold">
-                <h4>' . __('Gold', gold-silver-price) . '</h4>
-                <div class="price-value">' . esc_html($attributes['currency']) . ' ' . esc_html($gold_price) . 
-                    '<span>' . __('per', gold-silver-price) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
-                <div class="price-change ' . esc_attr($gold_class) . '">' . esc_html($gold_arrow) . ' ' . 
-                    esc_html(abs($gold_change)) . '%</div>
-            </div>';
-        }
-        
-        // Display silver if requested
-        if (in_array('silver', $metals_to_show)) {
-            $silver_price = number_format($prices['silver']['price'], 2);
-            $silver_change = $prices['silver']['change_percentage'];
-            $silver_arrow = $silver_change >= 0 ? '↑' : '↓';
-            $silver_class = $silver_change >= 0 ? 'price-up' : 'price-down';
-            
-            $output .= '
-            <div class="metal-price silver">
-                <h4>' . __('Silver', gold-silver-price) . '</h4>
-                <div class="price-value">' . esc_html($attributes['currency']) . ' ' . esc_html($silver_price) . 
-                    '<span>' . __('per', gold-silver-price) . ' ' . esc_html($attributes['weight_unit']) . '</span></div>
-                <div class="price-change ' . esc_attr($silver_class) . '">' . esc_html($silver_arrow) . ' ' . 
-                    esc_html(abs($silver_change)) . '%</div>
-            </div>';
-        }
-        
-        // Add footer with timestamp and refresh button
-        $output .= '
-        <div class="price-footer">
-            <div class="update-time">' . __('Last Updated:', gold-silver-price) . ' ' . 
-                date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($prices['last_updated'])) . '</div>
-            <button id="refresh-prices" class="refresh-btn">' . __('Refresh Prices', gold-silver-price) . '</button>
-        </div>';
-        
-        $output .= '</div>';
-        
-        return $output;
-    }
+    // Use DOMDocument to parse HTML
+    $dom = new DOMDocument();
+    @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'), LIBXML_NOERROR | LIBXML_NOWARNING);
     
-    /**
-     * Enqueue frontend assets
-     */
-    public function enqueue_assets() {
-        $options = get_option($this->options_name);
-        
-        // Register and enqueue the style
-        wp_register_style('metal-prices-style', false);
-        wp_enqueue_style('metal-prices-style');
-        
-        // Add the CSS
-        $custom_css = "
-        .metal-prices-container {
-            max-width: 500px;
-            margin: 0 auto;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
-        
-        .metal-prices-container h3 {
-            text-align: center;
-            margin: 0 0 20px 0;
-            font-size: 20px;
-            color: #333;
-        }
-        
-        .metal-price {
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .metal-price.gold {
-            border-left: 4px solid #FFD700;
-        }
-        
-        .metal-price.silver {
-            border-left: 4px solid #C0C0C0;
-        }
-        
-        .metal-price h4 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .price-value {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .price-value span {
-            font-size: 14px;
-            color: #666;
-            font-weight: normal;
-            margin-left: 5px;
-        }
-        
-        .price-change {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 14px;
-            width: fit-content;
-        }
-        
-        .price-change.price-up {
-            background-color: rgba(0, 255, 0, 0.1);
-            color: #008800;
-        }
-        
-        .price-change.price-down {
-            background-color: rgba(255, 0, 0, 0.1);
-            color: #dd0000;
-        }
-        
-        .price-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-        }
-        
-        .update-time {
-            font-size: 13px;
-            color: #777;
-        }
-        
-        .refresh-btn {
-            background: #0066cc;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .refresh-btn:hover {
-            background: #0055aa;
-        }
-        
-        /* Compact layout modifications */
-        .layout-compact .metal-price {
-            padding: 10px;
-        }
-        
-        .layout-compact .price-value {
-            font-size: 18px;
-        }
-        
-        /* Detailed layout modifications */
-        .layout-detailed .metal-price {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            align-items: center;
-        }
-        
-        .layout-detailed .metal-price h4 {
-            grid-column: 1 / 3;
-        }
-        ";
-        
-        // Add custom CSS if set
-        if (!empty($options['custom_css'])) {
-            $custom_css .= "\n/* Custom CSS */\n" . $options['custom_css'];
-        }
-        
-        wp_add_inline_style('metal-prices-style', $custom_css);
-        
-        // Register and enqueue the script
-        wp_enqueue_script('jquery');
-        wp_register_script('metal-prices-script', '', array('jquery'), '1.0', true);
-        wp_enqueue_script('metal-prices-script');
-        
-        // Add the JavaScript
-        $custom_js = "
-        jQuery(document).ready(function($) {
-            $('.refresh-btn').on('click', function() {
-                var button = $(this);
-                button.prop('disabled', true).text('" . __('Refreshing...', gold-silver-price) . "');
+    // Find all <ul> elements
+    $lists = $dom->getElementsByTagName('ul');
+    
+    $goldHallmarkTola = 0;
+    $silverTola = 0;
+    
+    // Iterate through all <ul> elements
+    foreach ($lists as $list) {
+        // Check if it's the gold-silver list
+        if ($list->getAttribute('class') === 'gold-silver') {
+            $items = $list->getElementsByTagName('li');
+            
+            for ($i = 0; $i < $items->length; $i++) {
+                $itemText = trim($items->item($i)->textContent);
                 
-                // Clear the transient to force refresh
-                $.ajax({
-                    url: '" . admin_url('admin-ajax.php') . "',
-                    type: 'POST',
-                    data: {
-                        'action': 'refresh_metal_prices'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            location.reload();
-                        } else {
-                            alert('" . __('Error refreshing prices', gold-silver-price) . "');
-                            button.prop('disabled', false).text('" . __('Refresh Prices', gold-silver-price) . "');
-                        }
-                    },
-                    error: function() {
-                        alert('" . __('Error connecting to server', gold-silver-price) . "');
-                        button.prop('disabled', false).text('" . __('Refresh Prices', gold-silver-price) . "');
+                // Extract Gold Hallmark (tola)
+                if (strpos($itemText, 'Gold Hallmark - tola') !== false && $i + 1 < $items->length) {
+                    $priceText = trim($items->item($i + 1)->textContent);
+                    // Remove 'Nrs.' and any commas, then convert to float
+                    $priceText = str_replace(['Nrs.', ','], '', $priceText);
+                    $goldHallmarkTola = floatval($priceText);
+                    error_log('Gold Hallmark Tola Price: ' . $goldHallmarkTola);
+                }
+                
+                // Extract Silver (tola)
+                if (strpos($itemText, 'Silver - tola') !== false && $i + 1 < $items->length) {
+                    $priceText = trim($items->item($i + 1)->textContent);
+                    // Remove 'Nrs.' and any commas, then convert to float
+                    $priceText = str_replace(['Nrs.', ','], '', $priceText);
+                    $silverTola = floatval($priceText);
+                    error_log('Silver Tola Price: ' . $silverTola);
+                }
+            }
+            
+            break; // Stop after finding the gold-silver list
+        }
+    }
+    
+    // Prepare prices array
+    $prices = array(
+        'gold' => array(
+            'price_per_tola' => $goldHallmarkTola,
+            'price_npr' => $goldHallmarkTola,
+            'change_percentage' => 0
+        ),
+        'silver' => array(
+            'price_per_tola' => $silverTola,
+            'price_npr' => $silverTola,
+            'change_percentage' => 0
+        ),
+        'last_updated' => current_time('mysql')
+    );
+    
+    // Final debug log
+    error_log('Final Prices: ' . print_r($prices, true));
+    
+    return $prices;
+}
+
+// Add a shortcode to display prices
+add_shortcode('nepal_gold_price', 'display_nepal_gold_price');
+
+function display_nepal_gold_price($atts) {
+    $prices = get_gold_silver_prices_nepal();
+    
+    if (!$prices) {
+        return '<p>Unable to fetch current prices. Please try again later.</p>';
+    }
+    
+    // Format prices with commas and 2 decimal places
+    $gold_price = number_format($prices['gold']['price_per_tola'], 2);
+    $silver_price = number_format($prices['silver']['price_per_tola'], 2);
+    
+    // Get price change indicators
+    $gold_change = $prices['gold']['change_percentage'];
+    $gold_arrow = $gold_change >= 0 ? '↑' : '↓';
+    $gold_class = $gold_change >= 0 ? 'price-up' : 'price-down';
+    
+    $silver_change = $prices['silver']['change_percentage'];
+    $silver_arrow = $silver_change >= 0 ? '↑' : '↓';
+    $silver_class = $silver_change >= 0 ? 'price-up' : 'price-down';
+    
+    // Start building the HTML output
+    $output = '
+    <div class="metal-prices-container">
+        <h3>Today\'s Metal Prices in Nepal</h3>
+        
+        <div class="metal-price gold">
+            <h4>Gold Hallmark</h4>
+            <div class="price-value">NPR ' . $gold_price . '<span>per tola</span></div>
+            <div class="price-change ' . $gold_class . '">' . $gold_arrow . ' ' . abs($gold_change) . '%</div>
+        </div>
+        
+        <div class="metal-price silver">
+            <h4>Silver</h4>
+            <div class="price-value">NPR ' . $silver_price . '<span>per tola</span></div>
+            <div class="price-change ' . $silver_class . '">' . $silver_arrow . ' ' . abs($silver_change) . '%</div>
+        </div>
+        
+        <div class="price-footer">
+            <div class="update-time">Last Updated: ' . date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($prices['last_updated'])) . '</div>
+            <button id="refresh-prices" class="refresh-btn">Refresh Prices</button>
+        </div>
+    </div>';
+    
+    return $output;
+}
+
+function enqueue_metal_price_assets() {
+    // Register and enqueue the style
+    wp_register_style('metal-prices-style', false);
+    wp_enqueue_style('metal-prices-style');
+    
+    // Add the CSS as inline style
+    $custom_css = "
+    .metal-prices-container {
+        max-width: 500px;
+        margin: 0 auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+    }
+    
+    .metal-prices-container h3 {
+        text-align: center;
+        margin: 0 0 20px 0;
+        font-size: 20px;
+        color: #333;
+    }
+    
+    .metal-price {
+        background: #f8f9fa;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .metal-price.gold {
+        border-left: 4px solid #FFD700;
+    }
+    
+    .metal-price.silver {
+        border-left: 4px solid #C0C0C0;
+    }
+    
+    .metal-price h4 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    
+    .price-value {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    
+    .price-value span {
+        font-size: 14px;
+        color: #666;
+        font-weight: normal;
+        margin-left: 5px;
+    }
+    
+    .price-change {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        width: fit-content;
+    }
+    
+    .price-change.price-up {
+        background-color: rgba(0, 255, 0, 0.1);
+        color: #008800;
+    }
+    
+    .price-change.price-down {
+        background-color: rgba(255, 0, 0, 0.1);
+        color: #dd0000;
+    }
+    
+    .price-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+    }
+    
+    .update-time {
+        font-size: 13px;
+        color: #777;
+    }
+    
+    .refresh-btn {
+        background: #0066cc;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .refresh-btn:hover {
+        background: #0055aa;
+    }
+    ";
+    
+    wp_add_inline_style('metal-prices-style', $custom_css);
+    
+    // Register and enqueue the script
+    wp_enqueue_script('jquery');
+    wp_register_script('metal-prices-script', '', array('jquery'), '1.0', true);
+    wp_enqueue_script('metal-prices-script');
+    
+    // Add the JavaScript as inline script
+    $custom_js = "
+    jQuery(document).ready(function($) {
+        $('#refresh-prices').on('click', function() {
+            var button = $(this);
+            button.prop('disabled', true).text('Refreshing...');
+            
+            // Clear the transient to force refresh
+            $.ajax({
+                url: '" . admin_url('admin-ajax.php') . "',
+                type: 'POST',
+                data: {
+                    'action': 'refresh_metal_prices'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Error refreshing prices');
+                        button.prop('disabled', false).text('Refresh Prices');
                     }
-                });
+                },
+                error: function() {
+                    alert('Error connecting to server');
+                    button.prop('disabled', false).text('Refresh Prices');
+                }
             });
         });
-        ";
-        
-        wp_add_inline_script('metal-prices-script', $custom_js);
-    }
+    });
+    ";
     
-    /**
-     * AJAX handler to refresh prices
-     */
-    public function refresh_prices() {
-        delete_transient($this->cache_key);
-        wp_send_json_success();
+    wp_add_inline_script('metal-prices-script', $custom_js);
+}
+add_action('wp_enqueue_scripts', 'enqueue_metal_price_assets');
+
+// Add AJAX handler for refreshing prices
+add_action('wp_ajax_refresh_metal_prices', 'refresh_metal_prices');
+add_action('wp_ajax_nopriv_refresh_metal_prices', 'refresh_metal_prices');
+
+function refresh_metal_prices() {
+    // Clear the transient to force a refresh
+    delete_transient('nepal_gold_silver_prices');
+    wp_send_json_success();
+}
+
+// Optional: Add a widget for displaying prices
+class Nepal_Metal_Prices_Widget extends WP_Widget {
+    function __construct() {
+        parent::__construct(
+            'nepal_metal_prices_widget', // Base ID
+            'Nepal Metal Prices', // Name
+            array('description' => 'Display current gold and silver prices in Nepal')
+        );
+    }
+
+    public function widget($args, $instance) {
+        echo $args['before_widget'];
+        echo do_shortcode('[nepal_gold_price]');
+        echo $args['after_widget'];
     }
 }
 
-// Initialize the plugin
-$gold_silver_tracker = new Gold_Silver_Price_Tracker();
+function register_nepal_metal_prices_widget() {
+    register_widget('Nepal_Metal_Prices_Widget');
+}
+add_action('widgets_init', 'register_nepal_metal_prices_widget');
+
+
+
+
+// Function to track gold prices from web scraping
+function track_gold_price_history() {
+    // Get current gold price from web scraping
+    $current_prices = scrape_hamropatro_prices();
+    
+    if (!$current_prices) {
+        return false;
+    }
+    
+    // Retrieve existing historical data
+    $historical_data = get_option('gold_price_history', []);
+    
+    // Add current price to historical data
+    $today = date('Y-m-d');
+    $current_gold_price = $current_prices['gold']['price_per_tola'];
+    
+    // Store price for today
+    $historical_data[$today] = $current_gold_price;
+    
+    // Keep only last 30 days of data
+    $historical_data = array_slice($historical_data, -30, 30, true);
+    
+    // Save updated historical data
+    update_option('gold_price_history', $historical_data);
+    
+    return $historical_data;
+}
+
+// Schedule daily tracking
+function schedule_gold_price_tracking() {
+    if (!wp_next_scheduled('daily_gold_price_tracking')) {
+        wp_schedule_event(time(), 'daily', 'daily_gold_price_tracking');
+    }
+}
+add_action('wp_loaded', 'schedule_gold_price_tracking');
+add_action('daily_gold_price_tracking', 'track_gold_price_history');
+
+// Shortcode to display gold price tracking table
+function gold_price_history_table_shortcode() {
+    // Fetch historical data
+    $historical_data = get_option('gold_price_history', []);
+    
+    // If no data, try to track prices
+    if (empty($historical_data)) {
+        track_gold_price_history();
+        $historical_data = get_option('gold_price_history', []);
+    }
+    
+    // Start output buffering
+    ob_start();
+    ?>
+    <div class="gold-price-history-container">
+        <h3>Gold Price History (Last 30 Days)</h3>
+        <table class="gold-price-history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Price (NPR per tola)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (array_reverse($historical_data, true) as $date => $price): ?>
+                    <tr>
+                        <td><?php echo esc_html($date); ?></td>
+                        <td><?php echo number_format($price, 2); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    
+    <style>
+    .gold-price-history-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+    
+    .gold-price-history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .gold-price-history-table th,
+    .gold-price-history-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    .gold-price-history-table thead {
+        background-color: #f2f2f2;
+    }
+    
+    .gold-price-history-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    </style>
+    <?php
+    
+    return ob_get_clean();
+}
+add_shortcode('gold_price_history_table', 'gold_price_history_table_shortcode');
+
+// Shortcode to display gold price graph
+function gold_price_history_graph_shortcode() {
+    // Enqueue Chart.js
+    wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js', [], '3.7.1', true);
+    
+    // Fetch historical data
+    $historical_data = get_option('gold_price_history', []);
+    
+    // If no data, try to track prices
+    if (empty($historical_data)) {
+        track_gold_price_history();
+        $historical_data = get_option('gold_price_history', []);
+    }
+    
+    // Prepare data for JavaScript
+    $dates = array_keys($historical_data);
+    $prices = array_values($historical_data);
+    
+    // Start output buffering
+    ob_start();
+    ?>
+    <div class="gold-price-graph-container">
+        <h3>Gold Price Trend</h3>
+        <canvas id="goldPriceChart" width="400" height="200"></canvas>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('goldPriceChart').getContext('2d');
+
+        const goldData = {
+            labels: <?php echo json_encode($dates); ?>,
+            prices: <?php echo json_encode($prices); ?>
+        };
+
+        function createGradient(ctx) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(255,215,0,0.5)');
+            gradient.addColorStop(1, 'rgba(255,215,0,0.1)');
+            return gradient;
+        }
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: goldData.labels,
+                datasets: [{
+                    label: 'Gold Price (NPR per tola)',
+                    data: goldData.prices,
+                    borderColor: '#FFD700',
+                    backgroundColor: createGradient(ctx),
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#FFD700',
+                    pointBorderColor: '#FFD700',
+                    pointHoverRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        titleColor: 'white',
+                        bodyColor: 'white'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Price (NPR per tola)'
+                        }
+                    }
+                }
+            }
+        });
+    });
+    </script>
+
+    <style>
+    .gold-price-graph-container {
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+    </style>
+    <?php
+    
+    return ob_get_clean();
+}
+add_shortcode('gold_price_history_graph', 'gold_price_history_graph_shortcode');
+
+// Manual refresh function for AJAX
+function manual_gold_price_tracking_refresh() {
+    // Check nonce for security
+    check_ajax_referer('gold_price_tracking_refresh', 'nonce');
+    
+    // Attempt to track prices
+    $result = track_gold_price_history();
+    
+    if ($result) {
+        wp_send_json_success('Gold prices updated successfully');
+    } else {
+        wp_send_json_error('Failed to update gold prices');
+    }
+}
+add_action('wp_ajax_gold_price_tracking_refresh', 'manual_gold_price_tracking_refresh');
+add_action('wp_ajax_nopriv_gold_price_tracking_refresh', 'manual_gold_price_tracking_refresh');
+
+// Enqueue scripts for manual refresh
+function enqueue_gold_price_tracking_scripts() {
+    wp_enqueue_script('jquery');
+    wp_add_inline_script('jquery', '
+    jQuery(document).ready(function($) {
+        $("#refresh-gold-prices").on("click", function() {
+            var button = $(this);
+            button.prop("disabled", true).text("Refreshing...");
+            
+            $.ajax({
+                url: "' . admin_url('admin-ajax.php') . '",
+                type: "POST",
+                data: {
+                    action: "gold_price_tracking_refresh",
+                    nonce: "' . wp_create_nonce('gold_price_tracking_refresh') . '"
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert("Error refreshing prices");
+                    }
+                    button.prop("disabled", false).text("Refresh Prices");
+                },
+                error: function() {
+                    alert("Error connecting to server");
+                    button.prop("disabled", false).text("Refresh Prices");
+                }
+            });
+        });
+    });
+    ');
+}
+add_action('wp_enqueue_scripts', 'enqueue_gold_price_tracking_scripts');
+
+// Add a manual refresh button shortcode
+function gold_price_manual_refresh_shortcode() {
+    return '<button id="refresh-gold-prices" style="display: block; margin: 0 auto;" class="btn btn-primary">Refresh Gold Prices</button>';
+}
+add_shortcode('gold_price_manual_refresh', 'gold_price_manual_refresh_shortcode');
+
+
+
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Function to track silver prices from web scraping
+function track_silver_price_history() {
+    // Get current silver price from web scraping
+    $current_prices = scrape_hamropatro_prices();
+    
+    if (!$current_prices) {
+        return false;
+    }
+    
+    // Retrieve existing historical data
+    $historical_data = get_option('silver_price_history', []);
+    
+    // Add current price to historical data
+    $today = date('Y-m-d');
+    $current_silver_price = $current_prices['silver']['price_per_tola'];
+    
+    // Store price for today
+    $historical_data[$today] = $current_silver_price;
+    
+    // Keep only last 30 days of data
+    $historical_data = array_slice($historical_data, -30, 30, true);
+    
+    // Save updated historical data
+    update_option('silver_price_history', $historical_data);
+    
+    return $historical_data;
+}
+
+// Schedule daily tracking for silver
+function schedule_silver_price_tracking() {
+    if (!wp_next_scheduled('daily_silver_price_tracking')) {
+        wp_schedule_event(time(), 'daily', 'daily_silver_price_tracking');
+    }
+}
+add_action('wp_loaded', 'schedule_silver_price_tracking');
+add_action('daily_silver_price_tracking', 'track_silver_price_history');
+
+// Shortcode to display silver price tracking table
+function silver_price_history_table_shortcode() {
+    // Fetch historical data
+    $historical_data = get_option('silver_price_history', []);
+    
+    // If no data, try to track prices
+    if (empty($historical_data)) {
+        track_silver_price_history();
+        $historical_data = get_option('silver_price_history', []);
+    }
+    
+    // Start output buffering
+    ob_start();
+    ?>
+    <div class="silver-price-history-container">
+        <h3>Silver Price History (Last 30 Days)</h3>
+        <table class="silver-price-history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Price (NPR per tola)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (array_reverse($historical_data, true) as $date => $price): ?>
+                    <tr>
+                        <td><?php echo esc_html($date); ?></td>
+                        <td><?php echo number_format($price, 2); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    
+    <style>
+    .silver-price-history-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+    
+    .silver-price-history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .silver-price-history-table th,
+    .silver-price-history-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    .silver-price-history-table thead {
+        background-color: #f2f2f2;
+    }
+    
+    .silver-price-history-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    </style>
+    <?php
+    
+    return ob_get_clean();
+}
+add_shortcode('silver_price_history_table', 'silver_price_history_table_shortcode');
+
+// Shortcode to display silver price graph
+function silver_price_history_graph_shortcode() {
+    // Enqueue Chart.js
+    wp_enqueue_script('chartjs', 'https://cdn.jsdelivr.net/npm/chart.js', [], '3.7.1', true);
+    
+    // Fetch historical data
+    $historical_data = get_option('silver_price_history', []);
+    
+    // If no data, try to track prices
+    if (empty($historical_data)) {
+        track_silver_price_history();
+        $historical_data = get_option('silver_price_history', []);
+    }
+    
+    // Prepare data for JavaScript
+    $dates = array_keys($historical_data);
+    $prices = array_values($historical_data);
+    
+    // Start output buffering
+    ob_start();
+    ?>
+    <div class="silver-price-graph-container">
+        <h3 style="display: block; margin: 0 auto;">Silver Price Trend</h3>
+        <canvas id="silverPriceChart" width="400" height="200"></canvas>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('silverPriceChart').getContext('2d');
+
+        const silverData = {
+            labels: <?php echo json_encode($dates); ?>,
+            prices: <?php echo json_encode($prices); ?>
+        };
+
+        function createGradient(ctx) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(192,192,192,0.5)');
+            gradient.addColorStop(1, 'rgba(192,192,192,0.1)');
+            return gradient;
+        }
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: silverData.labels,
+                datasets: [{
+                    label: 'Silver Price (NPR per tola)',
+                    data: silverData.prices,
+                    borderColor: '#C0C0C0',
+                    backgroundColor: createGradient(ctx),
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#C0C0C0',
+                    pointBorderColor: '#C0C0C0',
+                    pointHoverRadius: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        titleColor: 'white',
+                        bodyColor: 'white'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Price (NPR per tola)'
+                        }
+                    }
+                }
+            }
+        });
+    });
+    </script>
+
+    <style>
+    .silver-price-graph-container {
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+    </style>
+    <?php
+    
+    return ob_get_clean();
+}
+add_shortcode('silver_price_history_graph', 'silver_price_history_graph_shortcode');
+
+// Manual refresh function for silver prices via AJAX
+function manual_silver_price_tracking_refresh() {
+    // Check nonce for security
+    check_ajax_referer('silver_price_tracking_refresh', 'nonce');
+    
+    // Attempt to track prices
+    $result = track_silver_price_history();
+    
+    if ($result) {
+        wp_send_json_success('Silver prices updated successfully');
+    } else {
+        wp_send_json_error('Failed to update silver prices');
+    }
+}
+add_action('wp_ajax_silver_price_tracking_refresh', 'manual_silver_price_tracking_refresh');
+add_action('wp_ajax_nopriv_silver_price_tracking_refresh', 'manual_silver_price_tracking_refresh');
+
+// Enqueue scripts for manual silver price refresh
+function enqueue_silver_price_tracking_scripts() {
+    wp_enqueue_script('jquery');
+    wp_add_inline_script('jquery', '
+    jQuery(document).ready(function($) {
+        $("#refresh-silver-prices").on("click", function() {
+            var button = $(this);
+            button.prop("disabled", true).text("Refreshing...");
+            
+            $.ajax({
+                url: "' . admin_url('admin-ajax.php') . '",
+                type: "POST",
+                data: {
+                    action: "silver_price_tracking_refresh",
+                    nonce: "' . wp_create_nonce('silver_price_tracking_refresh') . '"
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert("Error refreshing prices");
+                    }
+                    button.prop("disabled", false).text("Refresh Prices");
+                },
+                error: function() {
+                    alert("Error connecting to server");
+                    button.prop("disabled", false).text("Refresh Prices");
+                }
+            });
+        });
+    });
+    ');
+}
+add_action('wp_enqueue_scripts', 'enqueue_silver_price_tracking_scripts');
+
+// Add a manual refresh button shortcode for silver
+function silver_price_manual_refresh_shortcode() {
+    return '<button id="refresh-silver-prices" class="btn btn-primary" style="display: block; margin: 0 auto;">
+    Refresh Silver Price Graph
+</button>
+';
+}
+add_shortcode('silver_price_manual_refresh', 'silver_price_manual_refresh_shortcode');
