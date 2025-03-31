@@ -7,7 +7,7 @@
  * Author: Sohan Mehta
  * Author URI: https://sohanmehta.com.np
  * Text Domain: nepal-metal-price-tracker
- * License: GPL v2 or later
+ * License: GPL v2 or later version
  */
 
 
