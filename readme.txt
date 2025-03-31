@@ -51,4 +51,4 @@ Charts are rendered using Chart.js
 Responsive design works on all devices
 
 License
-GPL v2 or later
+GPL v2 or later versions
