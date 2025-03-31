@@ -37,8 +37,8 @@ Display silver price chart:
 Copy[silver_price_history_graph]
 
 Add manual refresh buttons:
-Copy[gold_price_manual_refresh]
-
+Copy
+[gold_price_manual_refresh]
 [silver_price_manual_refresh]
 
 
